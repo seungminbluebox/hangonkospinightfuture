@@ -1,0 +1,145 @@
+[
+  {
+    "hname": "F 2603",
+    "shcode": "A0163000",
+    "expcode": "KR4A01630008",
+    "uplmtprice": "846.50",
+    "dnlmtprice": "721.10",
+    "jnilclose": "783.80",
+    "jnilhigh": "787.40",
+    "jnillow": "776.50",
+    "recprice": "783.80"
+  },
+  {
+    "hname": "F 2606",
+    "shcode": "A0166000",
+    "expcode": "KR4A01660005",
+    "uplmtprice": "844.35",
+    "dnlmtprice": "719.35",
+    "jnilclose": "781.85",
+    "jnilhigh": "788.05",
+    "jnillow": "778.80",
+    "recprice": "781.85"
+  },
+  {
+    "hname": "F 2609",
+    "shcode": "A0169000",
+    "expcode": "KR4A01690002",
+    "uplmtprice": "848.10",
+    "dnlmtprice": "722.50",
+    "jnilclose": "785.30",
+    "jnilhigh": "788.20",
+    "jnillow": "785.20",
+    "recprice": "785.30"
+  },
+  {
+    "hname": "F 2612",
+    "shcode": "A016C000",
+    "expcode": "KR4A016C0004",
+    "uplmtprice": "859.15",
+    "dnlmtprice": "731.95",
+    "jnilclose": "795.55",
+    "jnilhigh": "0.00",
+    "jnillow": "0.00",
+    "recprice": "795.55"
+  },
+  {
+    "hname": "F 2706",
+    "shcode": "A0176000",
+    "expcode": "KR4A01760003",
+    "uplmtprice": "866.45",
+    "dnlmtprice": "738.15",
+    "jnilclose": "802.30",
+    "jnilhigh": "0.00",
+    "jnillow": "0.00",
+    "recprice": "802.30"
+  },
+  {
+    "hname": "F 2712",
+    "shcode": "A017C000",
+    "expcode": "KR4A017C0003",
+    "uplmtprice": "877.95",
+    "dnlmtprice": "747.95",
+    "jnilclose": "812.95",
+    "jnilhigh": "0.00",
+    "jnillow": "0.00",
+    "recprice": "812.95"
+  },
+  {
+    "hname": "F 2812",
+    "shcode": "A018C000",
+    "expcode": "KR4A018C0002",
+    "uplmtprice": "885.60",
+    "dnlmtprice": "754.40",
+    "jnilclose": "820.00",
+    "jnilhigh": "820.00",
+    "jnillow": "810.00",
+    "recprice": "820.00"
+  },
+  {
+    "hname": "F SP 03-2606",
+    "shcode": "D016366S",
+    "expcode": "KR4D016366S8",
+    "uplmtprice": "37.20",
+    "dnlmtprice": "-41.10",
+    "jnilclose": "2.30",
+    "jnilhigh": "2.30",
+    "jnillow": "2.05",
+    "recprice": "0.00"
+  },
+  {
+    "hname": "F SP 03-2609",
+    "shcode": "D016369S",
+    "expcode": "KR4D016369S2",
+    "uplmtprice": "40.65",
+    "dnlmtprice": "-37.65",
+    "jnilclose": "0.00",
+    "jnilhigh": "0.00",
+    "jnillow": "0.00",
+    "recprice": "0.00"
+  },
+  {
+    "hname": "F SP 03-2612",
+    "shcode": "D01636CS",
+    "expcode": "KR4D01636CS8",
+    "uplmtprice": "50.90",
+    "dnlmtprice": "-27.40",
+    "jnilclose": "0.00",
+    "jnilhigh": "0.00",
+    "jnillow": "0.00",
+    "recprice": "0.00"
+  },
+  {
+    "hname": "F SP 03-2706",
+    "shcode": "D016376S",
+    "expcode": "KR4D016376S7",
+    "uplmtprice": "57.65",
+    "dnlmtprice": "-20.65",
+    "jnilclose": "0.00",
+    "jnilhigh": "0.00",
+    "jnillow": "0.00",
+    "recprice": "0.00"
+  },
+  {
+    "hname": "F SP 03-2712",
+    "shcode": "D01637CS",
+    "expcode": "KR4D01637CS6",
+    "uplmtprice": "68.30",
+    "dnlmtprice": "-10.00",
+    "jnilclose": "0.00",
+    "jnilhigh": "0.00",
+    "jnillow": "0.00",
+    "recprice": "0.00"
+  },
+  {
+    "hname": "F SP 03-2812",
+    "shcode": "D01638CS",
+    "expcode": "KR4D01638CS4",
+    "uplmtprice": "75.35",
+    "dnlmtprice": "-2.95",
+    "jnilclose": "0.00",
+    "jnilhigh": "0.00",
+    "jnillow": "0.00",
+    "recprice": "0.00"
+  }
+]
