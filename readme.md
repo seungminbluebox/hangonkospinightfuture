@@ -15,7 +15,41 @@ LS증권 API를 활용하여 코스피 200 야간 선물 시세를 실시간으�
 | **부팅 디스크**  | `20GB` (균형 있는 영구 디스크) | 기본 10GB보다 여유로운 용량          |
 | **방화벽**       | `HTTP/HTTPS 트래픽 허용`       | 향후 대시보드 확장 대비              |
 
----
+## 🔑 부록: GitHub 연결을 위한 SSH 키 설정
+
+서버(GCP VM)가 깃허브 저장소에 접근할 수 있도록 권한을 부여하는 과정이다-
+
+### 1. 서버에서 SSH 키 생성
+
+터미널에 아래 명령어를 입력한다- (이메일 주소만 본인 것으로 바꾼다-)
+
+```bash
+ssh-keygen -t ed25519 -C "your_email@example.com"
+
+```
+
+- **Enter file in which to save the key**: 그냥 **Enter**를 누른다-
+- **Enter passphrase**: 비밀번호 없이 쓰려면 그냥 **Enter**를 두 번 누른다-
+
+### 2. 생성된 공개키(Public Key) 확인 및 복사
+
+아래 명령어를 입력해 출력되는 긴 문자열을 전부 복사한다-
+
+```bash
+cat ~/.ssh/id_ed25519.pub
+
+```
+
+- `ssh-ed25519`로 시작해서 본인 이메일로 끝나는 한 줄이다-
+
+### 3. GitHub 저장소에 등록
+
+1. 본인의 **GitHub Repository** 페이지로 이동한다-
+2. **Settings** 탭 -> 왼쪽 메뉴의 **Deploy keys**를 클릭한다-
+3. **Add deploy key** 버튼을 누른다-
+4. **Title**: `GCP-Kospi-Night` (구분하기 쉬운 이름)
+5. **Key**: 방금 서버에서 복사한 내용을 붙여넣는다-
+6. **Add key** 버튼을 눌러 저장한다-
 
 ## 2. 서버 초기화 및 환경 구축
 
