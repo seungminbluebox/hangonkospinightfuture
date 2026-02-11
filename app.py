@@ -43,26 +43,50 @@ def get_access_token():
     raise Exception(f"Token fetch failed: {res.text}")
 
 # ------------------------------------------------------------------
-# ⏰ 2. 시간 및 청소 로직
+# ⏰ 2. 시간 및 청소 로직 (수정됨)
 # ------------------------------------------------------------------
 def is_market_open():
-    """지금이 야간선물 장 운영 시간(18:00 ~ 05:00)인지 체크"""
+    """지금이 야간선물 장 운영 시간(18:00 ~ 06:00)인지 체크"""
     kst = pytz.timezone('Asia/Seoul')
     now = datetime.now(kst)
-    # 저녁 6시 이후 ~ 밤 12시 전 OR 새벽 0시 ~ 새벽 5시 전
-    if now.hour >= 18 or now.hour < 5:
+    
+    # [수정됨] 새벽 5시 -> 6시로 연장
+    # 저녁 6시(18) 이상 OR 새벽 6시(06) 미만
+    if now.hour >= 18 or now.hour < 6:
         return True
     return False
 
-def cleanup_old_data(days=2):
-    """오래된 데이터 삭제 (DB 용량 관리)"""
+def manage_data_limit(limit=1440):
+    """
+    [수정됨] 날짜 기준이 아니라 '개수' 기준으로 삭제
+    - 최신 데이터 limit(1440)개만 남기고 나머지는 삭제
+    - 주말/휴일에도 데이터가 사라지지 않도록 보호
+    """
     try:
-        cutoff_date = datetime.now(pytz.utc) - timedelta(days=days)
-        cutoff_str = cutoff_date.isoformat()
-        # 로그는 청소할 때만 출력
-        print(f"🧹 데이터 정리 시작 ({days}일 이전 데이터 삭제)...")
-        supabase.table("market_night_futures").delete().lt("recorded_at", cutoff_str).execute()
-        print("✅ 데이터 정리 완료")
+        # 1. limit번째(1441번째) 레코드의 시간 찾기 (내림차순 정렬)
+        # range(start, end)는 0부터 시작하므로 range(1440, 1440)은 1441번째 데이터를 의미함
+        res = supabase.table("market_night_futures") \
+            .select("recorded_at") \
+            .order("recorded_at", desc=True) \
+            .range(limit, limit) \
+            .execute()
+        
+        # 1441번째 데이터가 존재한다면 (즉, 데이터가 1440개를 초과했다면)
+        if res.data and len(res.data) > 0:
+            cutoff_time = res.data[0]['recorded_at']
+            print(f"🧹 데이터 정리 시작 (최신 {limit}개 유지, 기준: {cutoff_time} 및 이전 삭제)...")
+            
+            # 2. 해당 시간보다 작거나 같은(lte) 데이터 삭제 (= 오래된 데이터 삭제)
+            supabase.table("market_night_futures") \
+                .delete() \
+                .lte("recorded_at", cutoff_time) \
+                .execute()
+                
+            print("✅ 데이터 정리 완료")
+        else:
+            # 데이터가 아직 1440개 안됨
+            pass
+            
     except Exception as e:
         print(f"⚠️ 데이터 정리 실패: {e}")
 
@@ -134,9 +158,10 @@ def get_night_futures_price_safe(max_retries=3):
 # 🚀 4. 메인 실행 루프 (정각 보정 적용)
 # ------------------------------------------------------------------
 def run_monitor_forever():
-    print("🚀 야간선물 트래커 가동 (18:00 ~ 05:00) - 정각 보정 모드")
+    print("🚀 야간선물 트래커 가동 (18:00 ~ 06:00) - 정각 보정 & 개수 유지 모드")
     
-    cleanup_old_data(days=2)
+    # 시작 시 데이터 개수 정리 1회 수행
+    manage_data_limit(limit=1440)
     last_cleanup_time = time.time()
     
     while True:
@@ -160,14 +185,16 @@ def run_monitor_forever():
                 if now.minute % 30 == 0 and now.second < 2:
                     print(f"😴 야간장이 아닙니다. (현재: {now.strftime('%H:%M')}) 대기 중...")
                 
-                # 다음 분 00초까지 대기 (깔끔하게 분 단위 체크)
+                # 다음 분 00초까지 대기
                 sleep_to_next_minute = 60 - now.second
                 time.sleep(sleep_to_next_minute)
                 continue
 
-            # 2️⃣ 정기 청소 (24시간마다)
-            if time.time() - last_cleanup_time > 86400:
-                cleanup_old_data(days=2)
+            # 2️⃣ 정기 데이터 정리 (1시간마다 수행으로 변경)
+            # 이유: 24시간마다 하면 밤새 데이터가 2,000개 넘게 쌓일 수 있음.
+            # 1시간마다 체크해서 1440개를 유지하도록 함.
+            if time.time() - last_cleanup_time > 3600:
+                manage_data_limit(limit=1440)
                 last_cleanup_time = time.time()
 
             # 3️⃣ 데이터 수집 및 저장
@@ -185,14 +212,11 @@ def run_monitor_forever():
                     print(f"🔥 DB 저장 실패: {db_err}")
             
             # 4️⃣ [핵심] 다음 실행 시간 보정 (Drift 방지)
-            # 현재 시간에서 1분을 더한 뒤, 초(second)를 1초로 고정
             now = datetime.now()
             target_next_run = (now + timedelta(minutes=1)).replace(second=1, microsecond=0)
             
-            # 남은 시간 계산
             sleep_seconds = (target_next_run - now).total_seconds()
             
-            # 만약 작업이 1분 이상 걸려서 이미 지났다면 즉시 실행(0초 대기)
             if sleep_seconds < 0:
                 sleep_seconds = 0
             
@@ -203,7 +227,7 @@ def run_monitor_forever():
             break
         except Exception as e:
             print(f"💀 알 수 없는 에러: {e}")
-            time.sleep(60) # 에러 시에는 1분 대기
+            time.sleep(60)
 
 if __name__ == "__main__":
     run_monitor_forever()
