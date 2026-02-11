@@ -132,6 +132,10 @@ pm2 logs kospi-night
 로컬에서 수정된 코드를 서버에 적용하는 방법입니다.
 
 ```bash
+# 2. 프로젝트 폴더 이동
+cd hangon_kospinight/
+# 3. 가상 환경 활성화
+source venv/bin/activate
 git pull origin main
 pm2 restart kospi-night
 
