@@ -50,9 +50,9 @@ def is_market_open():
     kst = pytz.timezone('Asia/Seoul')
     now = datetime.now(kst)
     
-    # [수정됨] 새벽 5시 -> 6시로 연장
-    # 저녁 6시(18) 이상 OR 새벽 6시(06) 미만
-    if now.hour >= 18 or now.hour < 6:
+    # [수정됨] 새벽 06:00:59까지 허용하여 6시 정각 데이터를 수집하도록 함
+    # 저녁 6시(18) 이상 OR 새벽 6시(06) 미만 OR 6시 0분
+    if now.hour >= 18 or now.hour < 6 or (now.hour == 6 and now.minute == 0):
         return True
     return False
 
