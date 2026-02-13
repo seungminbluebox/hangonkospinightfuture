@@ -46,14 +46,29 @@ def get_access_token():
 # ⏰ 2. 시간 및 청소 로직 (수정됨)
 # ------------------------------------------------------------------
 def is_market_open():
-    """지금이 야간선물 장 운영 시간(18:00 ~ 06:00)인지 체크"""
+    """지금이 야간선물 장 운영 시간(18:00 ~ 06:00)인지 체크 및 주말/휴일 제외"""
     kst = pytz.timezone('Asia/Seoul')
     now = datetime.now(kst)
-    
+    wd = now.weekday()  # 월:0, 화:1, ..., 금:4, 토:5, 일:6
+    hr = now.hour
+    mn = now.minute
+
+    # 1. 주말 차단 (토요일 06:01 ~ 월요일 17:59)
+    # 토요일 아침 6시 이후
+    if wd == 5 and (hr > 6 or (hr == 6 and mn > 0)):
+        return False
+    # 일요일 전체
+    if wd == 6:
+        return False
+    # 월요일 오후 6시 이전
+    if wd == 0 and hr < 18:
+        return False
+
+    # 2. 운영 시간 체크 (18:00 ~ 06:00)
     # [수정됨] 새벽 06:00:59까지 허용하여 6시 정각 데이터를 수집하도록 함
-    # 저녁 6시(18) 이상 OR 새벽 6시(06) 미만 OR 6시 0분
-    if now.hour >= 18 or now.hour < 6 or (now.hour == 6 and now.minute == 0):
+    if hr >= 18 or hr < 6 or (hr == 6 and mn == 0):
         return True
+        
     return False
 
 def manage_data_limit(limit=1440):
@@ -164,10 +179,18 @@ def run_monitor_forever():
     manage_data_limit(limit=1440)
     last_cleanup_time = time.time()
     
+    # 휴장 세션 여부 (거래량 0일 때 해당 세션 종료 시까지 True 유지)
+    is_holiday_session = False
+    
     while True:
         try:
-            # 1️⃣ 장 시간 체크
+            # 1️⃣ 장 시간 체크 (주말 포함)
             if not is_market_open():
+                # 장이 닫히면 휴장 플래그 초기화 (다음 세션을 위해)
+                if is_holiday_session:
+                    print("🌙 세션 종료. 휴장 플래그를 초기화합니다.")
+                    is_holiday_session = False
+                
                 kst = pytz.timezone('Asia/Seoul')
                 now = datetime.now(kst)
                 
@@ -190,23 +213,36 @@ def run_monitor_forever():
                 time.sleep(sleep_to_next_minute)
                 continue
 
-            # 2️⃣ 정기 데이터 정리 (1시간마다 수행으로 변경)
-            # 이유: 24시간마다 하면 밤새 데이터가 2,000개 넘게 쌓일 수 있음.
-            # 1시간마다 체크해서 1440개를 유지하도록 함.
+            # 2️⃣ 정기 데이터 정리 (1시간마다 수행)
             if time.time() - last_cleanup_time > 3600:
                 manage_data_limit(limit=1440)
                 last_cleanup_time = time.time()
+
+            # 2.5️⃣ 휴장 상태 체크
+            if is_holiday_session:
+                # 이미 거래량 0으로 확인된 세션이면 수집 없이 대기
+                now = datetime.now()
+                sleep_to_next_minute = 60 - now.second
+                time.sleep(max(0, sleep_to_next_minute))
+                continue
 
             # 3️⃣ 데이터 수집 및 저장
             market_data = get_night_futures_price_safe()
             
             if market_data:
+                # [핵심] 휴장 감지: 거래량이 0이면 수집 중단
+                if market_data['volume'] == 0:
+                    now_kst = datetime.now(pytz.timezone('Asia/Seoul')).strftime('%H:%M:%S')
+                    print(f"[{now_kst}] ⚠️ 거래량이 0입니다. 오늘 야간선물 휴장으로 판단하고 이번 세션 수집을 중단합니다.")
+                    is_holiday_session = True
+                    continue
+
                 try:
                     supabase.table("market_night_futures").insert(market_data).execute()
                     
                     # 로그 출력 (한국 시간)
                     now_kst = datetime.now(pytz.timezone('Asia/Seoul')).strftime('%H:%M:%S')
-                    print(f"[{now_kst}] {market_data['symbol']}: {market_data['price']}")
+                    print(f"[{now_kst}] {market_data['symbol']}: {market_data['price']} (Vol: {market_data['volume']})")
                     
                 except Exception as db_err:
                     print(f"🔥 DB 저장 실패: {db_err}")
@@ -221,6 +257,13 @@ def run_monitor_forever():
                 sleep_seconds = 0
             
             time.sleep(sleep_seconds)
+            
+        except KeyboardInterrupt:
+            print("\n🛑 사용자 중단")
+            break
+        except Exception as e:
+            print(f"💀 알 수 없는 에러: {e}")
+            time.sleep(60)
             
         except KeyboardInterrupt:
             print("\n🛑 사용자 중단")
