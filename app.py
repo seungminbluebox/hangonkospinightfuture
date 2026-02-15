@@ -7,6 +7,7 @@ import pytz
 from supabase import create_client, Client
 from dotenv import load_dotenv
 import sys
+from revalidate import revalidate_path
 
 # 1. 환경변수 및 기본 설정
 sys.path.insert(0, os.path.abspath(os.path.dirname(__file__)))
@@ -239,6 +240,9 @@ def run_monitor_forever():
 
                 try:
                     supabase.table("market_night_futures").insert(market_data).execute()
+                    
+                    # On-Demand Revalidation
+                    revalidate_path("/kospi-night-futures")
                     
                     # 로그 출력 (한국 시간)
                     now_kst = datetime.now(pytz.timezone('Asia/Seoul')).strftime('%H:%M:%S')
