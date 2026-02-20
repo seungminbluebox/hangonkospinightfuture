@@ -197,7 +197,7 @@ def run_monitor_forever():
                 
                 # [개장 임박] 17:50분부터는 18:00:01까지 정확히 대기
                 if now.hour == 17 and now.minute >= 50:
-                    target_time = now.replace(hour=18, minute=0, second=1, microsecond=0)
+                    target_time = now.replace(hour=18, minute=0, second=30, microsecond=0)
                     sleep_seconds = (target_time - now).total_seconds()
                     
                     if sleep_seconds > 0:
