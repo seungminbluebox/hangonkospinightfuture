@@ -23,6 +23,12 @@ BASE_URL = "https://openapi.ls-sec.co.kr:8080"
 # Supabase 연결
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
+# 환경변수 확인
+if not all([LS_APP_KEY, LS_APP_SECRET, SUPABASE_URL, SUPABASE_KEY]):
+    print("❌ 환경변수(LS_APP_KEY, LS_APP_SECRET, SUPABASE_URL, SUPABASE_KEY) 중 일부가 누락되었습니다.")
+else:
+    print("✅ 환경변수 로드 완료")
+
 # 전역 변수 (토큰 재사용)
 CURRENT_TOKEN = None
 
@@ -138,10 +144,16 @@ def get_night_futures_price_safe(max_retries=3):
                 continue
                 
             master_list = res.json().get("t8432OutBlock", [])
+            if not master_list:
+                print("⚠️ API 't8432OutBlock' 응답이 비어있습니다. (마스터 목록 없음)")
+                return None
+            
             target = next((item for item in master_list 
                            if item["hname"].startswith("F ") and (item["shcode"].startswith("A01") or item["shcode"].startswith("101"))), None)
             
-            if not target: return None
+            if not target: 
+                # print(f"DEBUG: Found {len(master_list)} items, but none matching 'F ' and 'A01/101'")
+                return None
 
             # [Step 2] 시세 조회
             focode = target["shcode"]
@@ -161,6 +173,8 @@ def get_night_futures_price_safe(max_retries=3):
                     "diff": float(data["diff"]),
                     "volume": int(data["volume"])
                 }
+            
+            print(f"⚠️ {target['hname']} 시세 데이터(t8456OutBlock)를 받지 못했습니다.")
             return None
 
         except Exception as e:
@@ -224,6 +238,7 @@ def run_monitor_forever():
                 # 이미 거래량 0으로 확인된 세션이면 수집 없이 대기
                 now = datetime.now()
                 sleep_to_next_minute = 60 - now.second
+                # print(f"😴 휴장 세션입니다. 다음 세션을 위해 대기 중... (현재: {now.strftime('%H:%M')})")
                 time.sleep(max(0, sleep_to_next_minute))
                 continue
 
@@ -233,8 +248,14 @@ def run_monitor_forever():
             if market_data:
                 # [핵심] 휴장 감지: 거래량이 0이면 수집 중단
                 if market_data['volume'] == 0:
-                    now_kst = datetime.now(pytz.timezone('Asia/Seoul')).strftime('%H:%M:%S')
-                    print(f"[{now_kst}] ⚠️ 거래량이 0입니다. 오늘 야간선물 휴장으로 판단하고 이번 세션 수집을 중단합니다.")
+                    now_kst_dt = datetime.now(pytz.timezone('Asia/Seoul'))
+                    # 장 초반(18:15까지)은 거래량이 0이어도 일시적 현상일 수 있으므로 중단하지 않음
+                    if now_kst_dt.hour == 18 and now_kst_dt.minute < 15:
+                        print(f"[{now_kst_dt.strftime('%H:%M:%S')}] ⚠️ 거래량이 아직 0입니다. (데이터 수집 대기 중...)")
+                        time.sleep(30)
+                        continue
+                        
+                    print(f"[{now_kst_dt.strftime('%H:%M:%S')}] ⚠️ 거래량이 0입니다. 오늘 야간선물 휴장으로 판단하고 이번 세션 수집을 중단합니다.")
                     is_holiday_session = True
                     continue
 
@@ -242,14 +263,20 @@ def run_monitor_forever():
                     supabase.table("market_night_futures").insert(market_data).execute()
                     
                     # On-Demand Revalidation
+                    # await_terminal/run_in_terminal 혹은 비동기 호출이 아니므로 순차 진행
                     revalidate_path("/kospi-night-futures")
                     
                     # 로그 출력 (한국 시간)
                     now_kst = datetime.now(pytz.timezone('Asia/Seoul')).strftime('%H:%M:%S')
-                    print(f"[{now_kst}] {market_data['symbol']}: {market_data['price']} (Vol: {market_data['volume']})")
+                    print(f"[{now_kst}] {market_data['symbol']}: {market_data['price']} (Vol: {market_data['volume']})", flush=True)
                     
                 except Exception as db_err:
                     print(f"🔥 DB 저장 실패: {db_err}")
+            else:
+                # 데이터를 가져오지 못했을 때 (None인 경우)
+                now_kst = datetime.now(pytz.timezone('Asia/Seoul')).strftime('%H:%M:%S')
+                # print(f"[{now_kst}] ⚠️ 데이터를 가져오지 못했습니다. (None 반환)")
+                pass
             
             # 4️⃣ [핵심] 다음 실행 시간 보정 (Drift 방지)
             now = datetime.now()
@@ -266,15 +293,9 @@ def run_monitor_forever():
             print("\n🛑 사용자 중단")
             break
         except Exception as e:
-            print(f"💀 알 수 없는 에러: {e}")
-            time.sleep(60)
-            
-        except KeyboardInterrupt:
-            print("\n🛑 사용자 중단")
-            break
-        except Exception as e:
-            print(f"💀 알 수 없는 에러: {e}")
-            time.sleep(60)
+            now_kst = datetime.now(pytz.timezone('Asia/Seoul')).strftime('%H:%M:%S')
+            print(f"[{now_kst}] 💀 알 수 없는 에러 발생: {e}")
+            time.sleep(60) # 에러 시 1분 대기 후 재시도
 
 if __name__ == "__main__":
     run_monitor_forever()
