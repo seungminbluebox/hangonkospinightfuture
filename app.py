@@ -145,7 +145,9 @@ def get_night_futures_price_safe(max_retries=3):
                 
             master_list = res.json().get("t8432OutBlock", [])
             if not master_list:
-                print("⚠️ API 't8432OutBlock' 응답이 비어있습니다. (마스터 목록 없음)")
+                print("⚠️ API 't8432OutBlock' 응답이 비어있습니다. (토큰 세션 의심, 초기화 시도)")
+                # 데이터가 비어있다면 토큰 세션 문제일 확률이 높으므로 초기화
+                CURRENT_TOKEN = None 
                 return None
             
             target = next((item for item in master_list 
@@ -209,13 +211,17 @@ def run_monitor_forever():
                 kst = pytz.timezone('Asia/Seoul')
                 now = datetime.now(kst)
                 
-                # [개장 임박] 17:50분부터는 18:00:01까지 정확히 대기
+                # [개장 임박] 17:50분부터는 18:00:30까지 정확히 대기
                 if now.hour == 17 and now.minute >= 50:
                     target_time = now.replace(hour=18, minute=0, second=30, microsecond=0)
                     sleep_seconds = (target_time - now).total_seconds()
                     
                     if sleep_seconds > 0:
-                        print(f"⏱️ 개장 임박! {sleep_seconds:.1f}초 대기 후 시작합니다...")
+                        print(f"⏱️ 개장 임박! {sleep_seconds:.1f}초 대기 후 시작합니다... (세션 초기화)")
+                        # [핵심] 새 세션을 위해 토큰과 휴장 플래그 초기화
+                        global CURRENT_TOKEN
+                        CURRENT_TOKEN = None
+                        is_holiday_session = False
                         time.sleep(sleep_seconds)
                         continue 
 
